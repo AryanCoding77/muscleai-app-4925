@@ -7,7 +7,7 @@ import {
   APIState,
   APIError 
 } from '../types/api.types';
-import { TogetherAIService } from '../services/api/TogetherAIService';
+import { FireworksAIService } from '../services/api/FireworksAIService';
 import { APIStateManager } from '../services/api/APIStateManager';
 import { CacheManager } from '../services/cache/CacheManager';
 import { QueueManager } from '../services/queue/QueueManager';
@@ -40,7 +40,7 @@ export const useAPIAnalysis = (options: UseAPIAnalysisOptions = {}) => {
   const [result, setResult] = useState<MuscleAnalysisResponse | null>(null);
   const [history, setHistory] = useState<MuscleAnalysisResponse[]>([]);
 
-  const apiService = TogetherAIService.getInstance();
+  const apiService = FireworksAIService.getInstance();
   
   const stateManager = APIStateManager.getInstance();
   const cacheManager = CacheManager.getInstance();
@@ -198,19 +198,6 @@ export const useAPIAnalysis = (options: UseAPIAnalysisOptions = {}) => {
     }
   }, [apiService]);
 
-  /**
-   * Set API key
-   */
-  const setApiKey = useCallback(async (apiKey: string) => {
-    await apiService.setApiKey(apiKey);
-  }, [apiService]);
-
-  /**
-   * Get API key
-   */
-  const getApiKey = useCallback(async (): Promise<string | null> => {
-    return await apiService.getApiKey();
-  }, [apiService]);
 
   return {
     // State
@@ -226,8 +213,6 @@ export const useAPIAnalysis = (options: UseAPIAnalysisOptions = {}) => {
     clearHistory,
     getCacheStats,
     testConnection,
-    setApiKey,
-    getApiKey,
     
     // Flags
     isLoading: state.isLoading,

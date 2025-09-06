@@ -1,26 +1,24 @@
-// Together AI Service - Core API Integration
+// Fireworks AI Service - Core API Integration
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { 
-  TogetherAIConfig, 
-  TogetherAIRequest, 
-  MuscleAnalysisResponse, 
-  APIResponse, 
-  APIError, 
+import {
+  AIServiceConfig,
+  AIChatRequest,
+  MuscleAnalysisResponse,
+  APIResponse,
+  APIError,
   APIErrorCode,
-  APIState 
+  APIState,
 } from '../../types/api.types';
 import { API_CONFIG, ERROR_MESSAGES, ANALYSIS_PROMPT } from '../../config/constants';
 import { ImageProcessor } from '../image/ImageProcessor';
 import { CacheManager } from '../cache/CacheManager';
 import { QueueManager } from '../queue/QueueManager';
 
-export class TogetherAIService {
-  private static instance: TogetherAIService;
-  private static readonly MODEL = 'meta-llama/Llama-4-Scout-17B-16E-Instruct';
+export class FireworksAIService {
+  private static instance: FireworksAIService;
   private axiosInstance: AxiosInstance;
-  private config: TogetherAIConfig;
+  private config: AIServiceConfig;
   private cacheManager: CacheManager;
   private queueManager: QueueManager;
   private abortController: AbortController | null = null;
@@ -32,17 +30,17 @@ export class TogetherAIService {
     this.queueManager = QueueManager.getInstance();
   }
 
-  public static getInstance(): TogetherAIService {
-    if (!TogetherAIService.instance) {
-      TogetherAIService.instance = new TogetherAIService();
+  public static getInstance(): FireworksAIService {
+    if (!FireworksAIService.instance) {
+      FireworksAIService.instance = new FireworksAIService();
     }
-    return TogetherAIService.instance;
+    return FireworksAIService.instance;
   }
 
-  private loadConfig(): TogetherAIConfig {
+  private loadConfig(): AIServiceConfig {
     return {
-      apiKey: process.env.EXPO_PUBLIC_TOGETHER_API_KEY || '',
-      apiUrl: process.env.EXPO_PUBLIC_TOGETHER_API_URL || 'https://api.together.xyz/v1/chat/completions',
+      apiKey: process.env.EXPO_PUBLIC_FIREWORKS_API_KEY || '',
+      apiUrl: process.env.EXPO_PUBLIC_FIREWORKS_API_URL || 'https://api.fireworks.ai/inference/v1/chat/completions',
       timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '60000'),
       maxRetries: parseInt(process.env.EXPO_PUBLIC_MAX_RETRIES || '3'),
       retryDelay: parseInt(process.env.EXPO_PUBLIC_RETRY_DELAY || '1000'),
@@ -59,29 +57,6 @@ export class TogetherAIService {
     });
   }
 
-  public async setApiKey(apiKey: string): Promise<void> {
-    try {
-      await SecureStore.setItemAsync('together_api_key', apiKey);
-      this.config.apiKey = apiKey;
-    } catch (error) {
-      console.error('Failed to store API key securely:', error);
-      throw new Error('Failed to save API key');
-    }
-  }
-
-  public async getApiKey(): Promise<string | null> {
-    try {
-      const storedKey = await SecureStore.getItemAsync('together_api_key');
-      if (storedKey) {
-        this.config.apiKey = storedKey;
-        return storedKey;
-      }
-      return this.config.apiKey || null;
-    } catch (error) {
-      console.error('Failed to retrieve API key:', error);
-      return null;
-    }
-  }
 
   public async analyzeMuscleImage(
     imageUri: string,
@@ -89,18 +64,16 @@ export class TogetherAIService {
   ): Promise<APIResponse<MuscleAnalysisResponse>> {
     const startTime = Date.now();
     let retryCount = 0;
-    
-    console.log('🚀 === MUSCLE AI ANALYSIS STARTED ===');
+
+    console.log('🚀 === MUSCLE AI ANALYSIS (FIREWORKS) STARTED ===');
     console.log('📸 Image URI:', imageUri);
     console.log('🔑 API Key Present:', !!this.config.apiKey);
     console.log('🌐 API URL:', this.config.apiUrl);
     console.log('⏱️ Timeout:', this.config.timeout);
     console.log('🔄 Max Retries:', this.config.maxRetries);
-    console.log('=====================================');
-    
+    console.log('==============================================');
+
     try {
-      // Ensure latest API key from SecureStore is loaded before validating
-      await this.getApiKey();
       // Validate API key first
       if (!this.config.apiKey || this.config.apiKey.trim() === '') {
         console.error('❌ API KEY ERROR: No API key provided');
@@ -108,7 +81,7 @@ export class TogetherAIService {
           code: APIErrorCode.AUTH_ERROR,
           message: 'Missing API key',
           retryable: false,
-          userMessage: 'Missing API key. Tap "Update API Key" on the Analyze screen to set your Together AI key.',
+          userMessage: 'Missing API key. Please check your environment configuration.',
         };
         return {
           success: false,
@@ -145,7 +118,7 @@ export class TogetherAIService {
       const processedImage = await ImageProcessor.processImage(imageUri);
       console.log('✅ Image processed successfully');
       console.log('📏 Image size:', processedImage.base64.length, 'characters');
-      
+
       onProgress?.({
         isLoading: true,
         progress: 30,
@@ -157,11 +130,11 @@ export class TogetherAIService {
       // Prepare request
       console.log('📝 Preparing API request...');
       const request = this.prepareRequest(processedImage.base64);
-      console.log('✅ Request prepared with model:', request.model);
+      console.log('✅ Request prepared with model:', API_CONFIG.FIREWORKS_MODEL);
       console.log('📊 Request tokens limit:', request.max_tokens);
 
       // Execute with retry logic
-      console.log('🌐 Sending request to Together AI...');
+      console.log('🌐 Sending request to Fireworks AI...');
       const response = await this.executeWithRetry(
         request,
         retryCount,
@@ -186,7 +159,6 @@ export class TogetherAIService {
         timestamp: Date.now(),
         cached: false,
       };
-
     } catch (error) {
       console.error('💥 === ANALYSIS FAILED ===');
       console.error('❌ Error details:', error);
@@ -194,7 +166,7 @@ export class TogetherAIService {
       console.error('📝 Error message:', (error as any)?.message || 'Unknown error');
       console.error('🏗️ Error stack:', (error as any)?.stack || 'No stack trace');
       console.error('==========================');
-      
+
       const apiError = this.handleError(error);
       return {
         success: false,
@@ -208,22 +180,17 @@ export class TogetherAIService {
     }
   }
 
-  private prepareRequest(base64Image: string): TogetherAIRequest {
+  private prepareRequest(base64Image: string): AIChatRequest {
     return {
-      model: API_CONFIG.TOGETHER_MODEL,
+      model: API_CONFIG.FIREWORKS_MODEL,
       messages: [
         {
           role: 'user',
           content: [
-            {
-              type: 'text',
-              text: ANALYSIS_PROMPT,
-            },
+            { type: 'text', text: ANALYSIS_PROMPT },
             {
               type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
-              },
+              image_url: { url: `data:image/jpeg;base64,${base64Image}` },
             },
           ],
         },
@@ -235,19 +202,19 @@ export class TogetherAIService {
   }
 
   private async executeWithRetry(
-    request: TogetherAIRequest,
+    request: AIChatRequest,
     retryCount: number,
     onProgress?: (state: APIState) => void
   ): Promise<any> {
     const maxRetries = this.config.maxRetries;
-    
+
     console.log('🔄 Starting API request with retry logic...');
     console.log('🎯 Max retries allowed:', maxRetries);
-    
+
     while (retryCount <= maxRetries) {
       try {
         console.log(`📡 Attempt ${retryCount + 1}/${maxRetries + 1}`);
-        
+
         // Create new abort controller for this request
         this.abortController = new AbortController();
         console.log('🛡️ Abort controller created');
@@ -262,26 +229,25 @@ export class TogetherAIService {
           signal: this.abortController?.signal,
           timeout: this.config.timeout,
           headers: {
-            'Authorization': `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json',
           },
           onUploadProgress: (progressEvent: any) => {
             const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total!);
             console.log(`📤 Upload progress: ${progress}%`);
             onProgress?.({ isLoading: true, progress, statusMessage: 'Uploading...', error: null, retryCount: 0 });
-          }
+          },
         });
 
         console.log('✅ API request successful!');
         console.log('📊 Response status:', response.status);
         console.log('📏 Response data size:', JSON.stringify(response.data).length, 'bytes');
         console.log('🔍 Response structure:', Object.keys(response.data || {}));
-        
-        return response.data;
 
+        return response.data;
       } catch (error) {
         console.error(`❌ Request attempt ${retryCount + 1} failed`);
-        
+
         if (axios.isCancel(error)) {
           console.error('🚫 Request was cancelled by user');
           throw new Error('Request cancelled by user');
@@ -301,7 +267,7 @@ export class TogetherAIService {
 
         const isRetryable = this.isRetryableError(error as AxiosError);
         console.log('🔄 Is error retryable?', isRetryable);
-        
+
         if (!isRetryable || retryCount >= maxRetries) {
           console.error('🛑 Max retries reached or error not retryable, giving up');
           throw error;
@@ -310,10 +276,10 @@ export class TogetherAIService {
         retryCount++;
         const delay = this.calculateRetryDelay(retryCount);
         console.log(`⏳ Waiting ${delay}ms before retry ${retryCount}...`);
-        
+
         onProgress?.({
           isLoading: true,
-          progress: 30 + (retryCount * 10),
+          progress: 30 + retryCount * 10,
           statusMessage: `Retrying analysis (attempt ${retryCount + 1}/${maxRetries + 1})...`,
           error: null,
           retryCount,
@@ -344,63 +310,57 @@ export class TogetherAIService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private parseResponse(response: any): MuscleAnalysisResponse {
     try {
-      const content = response.choices[0]?.message?.content;
+      const content = response.choices?.[0]?.message?.content;
       if (!content) {
         throw { message: 'No content in response', code: 'INVALID_RESPONSE' };
       }
 
       // Log API response to terminal for debugging
-      console.log('=== TOGETHER AI API RESPONSE ===');
-      console.log('Model:', TogetherAIService.MODEL);
-      console.log('Raw Response Length:', content.length);
+      console.log('=== FIREWORKS API RESPONSE ===');
+      console.log('Raw Response Length:', typeof content === 'string' ? content.length : JSON.stringify(content).length);
       console.log('Raw Response:', content);
       console.log('================================');
 
-      // Parse JSON response from AI with improved error handling
+      // Fireworks usually returns a string content for text responses
       let parsedResponse: MuscleAnalysisResponse;
       try {
-        // Try to extract JSON from the response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+        const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           let jsonString = jsonMatch[0];
-          
-          // Check if JSON is truncated and try to fix it
           if (!this.isValidJSON(jsonString)) {
             console.log('🔧 Detected truncated JSON, attempting to fix...');
             jsonString = this.fixTruncatedJSON(jsonString);
           }
-          
           parsedResponse = JSON.parse(jsonString);
         } else {
-          // Try parsing the entire content
-          if (!this.isValidJSON(content)) {
+          if (!this.isValidJSON(contentStr)) {
             console.log('🔧 Detected truncated JSON in full content, attempting to fix...');
-            const fixedContent = this.fixTruncatedJSON(content);
+            const fixedContent = this.fixTruncatedJSON(contentStr);
             parsedResponse = JSON.parse(fixedContent);
           } else {
-            parsedResponse = JSON.parse(content);
+            parsedResponse = JSON.parse(contentStr);
           }
         }
       } catch (parseError) {
         console.error('Failed to parse JSON from AI response:', parseError);
-        console.error('Content that failed to parse:', content.substring(0, 500) + '...');
         throw new Error('AI response is not valid JSON');
       }
 
       // Validate the response structure
       this.validateAnalysisResponse(parsedResponse);
-      
+
       // Log parsed muscle analysis to terminal
       console.log('=== MUSCLE ANALYSIS RESULTS ===');
       console.log('Overall Physique Score:', parsedResponse.overall_assessment.overall_physique_score);
       console.log('Body Symmetry Score:', parsedResponse.overall_assessment.body_symmetry_score);
       console.log('Muscle Analysis:');
-      parsedResponse.muscle_analysis.forEach(muscle => {
+      parsedResponse.muscle_analysis.forEach((muscle) => {
         console.log(`  ${muscle.muscle_name}: ${muscle.development_score}/10 (${muscle.development_category})`);
       });
       console.log('Recommendations:', parsedResponse.recommendations.length, 'items');
@@ -424,40 +384,34 @@ export class TogetherAIService {
 
   private fixTruncatedJSON(jsonString: string): string {
     try {
-      // Remove any trailing incomplete text
       let cleaned = jsonString.trim();
-      
+
       // Count open and close braces
       let openBraces = (cleaned.match(/\{/g) || []).length;
       let closeBraces = (cleaned.match(/\}/g) || []).length;
-      
-      // Add missing closing braces
       while (closeBraces < openBraces) {
         cleaned += '}';
         closeBraces++;
       }
-      
+
       // Count open and close brackets
       let openBrackets = (cleaned.match(/\[/g) || []).length;
       let closeBrackets = (cleaned.match(/\]/g) || []).length;
-      
-      // Add missing closing brackets
       while (closeBrackets < openBrackets) {
         cleaned += ']';
         closeBrackets++;
       }
-      
-      // Remove any trailing commas before closing braces/brackets
+
+      // Remove trailing commas
       cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
-      
-      // If still not valid, try to find the last complete object
+
       if (!this.isValidJSON(cleaned)) {
         const lastCompleteMatch = cleaned.match(/^.*\}(?=\s*$)/s);
         if (lastCompleteMatch) {
           cleaned = lastCompleteMatch[0];
         }
       }
-      
+
       console.log('🔧 Fixed JSON length:', cleaned.length);
       return cleaned;
     } catch (error) {
@@ -467,50 +421,37 @@ export class TogetherAIService {
   }
 
   private validateAnalysisResponse(data: any): void {
-    const requiredFields = [
-      'analysis_metadata',
-      'muscle_analysis',
-      'overall_assessment',
-      'recommendations',
-    ];
-
+    const requiredFields = ['analysis_metadata', 'muscle_analysis', 'overall_assessment', 'recommendations'];
     for (const field of requiredFields) {
       if (!data[field]) {
         throw new Error(`Missing required field: ${field}`);
       }
     }
 
-    // Validate metadata
-    if (!data.analysis_metadata.image_quality || 
-        typeof data.analysis_metadata.analysis_confidence !== 'number') {
+    if (!data.analysis_metadata.image_quality || typeof data.analysis_metadata.analysis_confidence !== 'number') {
       throw new Error('Invalid analysis metadata');
     }
 
-    // Validate muscle analysis array
     if (!Array.isArray(data.muscle_analysis) || data.muscle_analysis.length === 0) {
       throw new Error('Invalid muscle analysis data');
     }
 
-    // Validate each muscle analysis entry
     for (const muscle of data.muscle_analysis) {
-      if (!muscle.muscle_name || 
-          typeof muscle.development_score !== 'number' ||
-          muscle.development_score < 1 || 
-          muscle.development_score > 10) {
+      if (!muscle.muscle_name || typeof muscle.development_score !== 'number' || muscle.development_score < 1 || muscle.development_score > 10) {
         throw new Error('Invalid muscle analysis entry');
       }
     }
   }
 
   private handleError(error: any): APIError {
-    console.error('🚨 === ERROR HANDLER ACTIVATED ===');
+    console.error('🚨 === ERROR HANDLER ACTIVATED (FIREWORKS) ===');
     console.error('🔍 Error type:', typeof error);
     console.error('📝 Error message:', error?.message);
     console.error('🏗️ Error constructor:', error?.constructor?.name);
 
     if (axios.isAxiosError(error)) {
       console.error('🌐 This is an Axios error');
-      
+
       if (!error.response) {
         console.error('❌ Network error - no response received');
         console.error('🔗 Possible causes: No internet, DNS issues, server down');
@@ -518,7 +459,7 @@ export class TogetherAIService {
           code: APIErrorCode.NETWORK_ERROR,
           message: error.message,
           retryable: true,
-          userMessage: `Network Error: ${error.message}. Check your internet connection.`,
+          userMessage: ERROR_MESSAGES.NETWORK_ERROR,
         };
       }
 
@@ -537,7 +478,16 @@ export class TogetherAIService {
             message: 'Authentication failed - Invalid API key',
             details: data,
             retryable: false,
-            userMessage: 'Authentication Error: Invalid or missing API key. Tap "Update API Key" on the Analyze screen to set a valid Together AI key.',
+            userMessage: 'Authentication Error: Invalid or missing API key. Set EXPO_PUBLIC_FIREWORKS_API_KEY in your .env and restart the app.',
+          };
+        case 404:
+          console.error('🔎 Model not found or inaccessible');
+          return {
+            code: APIErrorCode.UNKNOWN_ERROR,
+            message: 'Model not found or inaccessible',
+            details: data,
+            retryable: false,
+            userMessage: 'Model Error: The requested model was not found or is inaccessible. Verify model ID (accounts/fireworks/models/llama-v3p2-11b-vision-instruct), serverless availability, and API key permissions.',
           };
         case 429:
           console.error('🚦 Rate limit exceeded');
@@ -546,7 +496,7 @@ export class TogetherAIService {
             message: 'Rate limit exceeded',
             details: data,
             retryable: true,
-            userMessage: 'Rate Limit: Too many requests. Please wait a moment and try again.',
+            userMessage: ERROR_MESSAGES.RATE_LIMIT,
           };
         case 408:
         case 504:
@@ -556,7 +506,7 @@ export class TogetherAIService {
             message: 'Request timeout',
             details: data,
             retryable: true,
-            userMessage: 'Timeout Error: The request took too long. Please try again.',
+            userMessage: ERROR_MESSAGES.API_TIMEOUT,
           };
         case 400:
           console.error('📝 Bad request - check request format');
@@ -601,7 +551,7 @@ export class TogetherAIService {
 
     console.error('🔥 Non-Axios error occurred');
     console.error('📋 Full error object:', error);
-    
+
     return {
       code: APIErrorCode.UNKNOWN_ERROR,
       message: error.message || 'Unknown error occurred',
@@ -620,7 +570,7 @@ export class TogetherAIService {
   public async testConnection(): Promise<boolean> {
     try {
       const testRequest = {
-        model: API_CONFIG.TOGETHER_MODEL,
+        model: API_CONFIG.FIREWORKS_MODEL,
         messages: [
           {
             role: 'user',
@@ -630,12 +580,10 @@ export class TogetherAIService {
         max_tokens: 10,
       };
 
-      // Ensure we use the latest stored API key, if any
-      await this.getApiKey();
 
       await this.axiosInstance.post('', testRequest, {
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
         },
         timeout: 5000,

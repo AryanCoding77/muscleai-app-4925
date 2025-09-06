@@ -44,13 +44,13 @@ export const HomeScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ResponsiveHeader
-        userName="Emma"
-        subtitle="Get ready"
-        onSettingsPress={onSettingsPress}
-        onNotificationPress={onNotificationPress}
-      />
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ResponsiveHeader
+          userName="Emma"
+          subtitle="Get ready"
+          onSettingsPress={onSettingsPress}
+          onNotificationPress={onNotificationPress}
+        />
 
         {/* Dashboard (decorative stats to enhance design) */}
         <View style={styles.dashboardSection}>

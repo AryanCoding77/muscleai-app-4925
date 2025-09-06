@@ -1,39 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { COLORS } from '../config/constants';
-import { useAuth } from '../contexts/AuthContext';
 
 
 export const SettingsScreen = ({ navigation }: any) => {
-  const { user, signOut } = useAuth();
-  
   const haptic = async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-  };
-  
-  const handleSignOut = async () => {
-    await haptic();
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              // Navigation will be handled by auth state change in App.tsx
-            } catch (error) {
-              console.error('Sign out error:', error);
-            }
-          }
-        }
-      ]
-    );
   };
 
   return (
@@ -50,21 +24,12 @@ export const SettingsScreen = ({ navigation }: any) => {
 
         {/* Profile summary card */}
         <View style={styles.profileCard}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-            </Text>
-          </View>
+          <Image source={require('../../assets/icon.png')} style={styles.avatar} />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
-              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-            </Text>
-            <Text style={styles.profileEmail}>{user?.email || 'Not signed in'}</Text>
+            <Text style={styles.profileName}>Alex Richards</Text>
+            <Text style={styles.profileEmail}>alex.richards@***ple.com</Text>
           </View>
-          <TouchableOpacity onPress={() => {
-            haptic();
-            navigation.navigate('MainTabs', { screen: 'Profile' });
-          }} style={styles.editBtn}>
+          <TouchableOpacity onPress={haptic} style={styles.editBtn}>
             <Icon name="pencil-outline" size={18} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -92,9 +57,9 @@ export const SettingsScreen = ({ navigation }: any) => {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity onPress={handleSignOut} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={haptic} style={styles.logoutBtn}>
           <Icon name="logout" size={20} color="#FF453A" />
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -165,20 +130,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginRight: 12,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
-    backgroundColor: COLORS.primary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.primary,
   },
   profileInfo: {
     flex: 1,

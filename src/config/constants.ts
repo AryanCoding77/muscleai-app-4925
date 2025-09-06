@@ -1,7 +1,7 @@
 // Application Constants and Configuration
 
 export const API_CONFIG = {
-  TOGETHER_MODEL: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+  FIREWORKS_MODEL: process.env.EXPO_PUBLIC_FIREWORKS_MODEL || 'accounts/fireworks/models/llama-v3p2-11b-vision-instruct',
   MAX_TOKENS: 2500,
   TEMPERATURE: 0.1,
   TOP_P: 0.9,
@@ -31,6 +31,16 @@ export const QUEUE_CONFIG = {
   REQUEST_PRIORITY_HIGH: 1,
   REQUEST_PRIORITY_NORMAL: 5,
   REQUEST_PRIORITY_LOW: 10,
+};
+
+// ExerciseDB (RapidAPI) Configuration
+export const EXERCISEDB_CONFIG = {
+  BASE_URL: 'https://exercisedb.p.rapidapi.com',
+  HOST: 'exercisedb.p.rapidapi.com',
+  // Set this in your .env: EXPO_PUBLIC_RAPIDAPI_KEY=<your_key>
+  RAPIDAPI_KEY: process.env.EXPO_PUBLIC_RAPIDAPI_KEY || '',
+  MAX_EXERCISES_PER_TARGET: 4,
+  MAX_TARGETS: 6,
 };
 
 export const ERROR_MESSAGES = {

@@ -9,15 +9,21 @@ import {
   Alert,
   TextInput,
   Modal,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../config/constants';
+import { WaveGraph } from '../components/ui/WaveGraph';
 import { Card } from '../components/ui/Card';
 import { StatBadge } from '../components/dashboard/StatBadge';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { MaterialCommunityIcons as Icon, Ionicons } from '@expo/vector-icons';
 import { storageService } from '../services/storage';
 import { AnalysisResult } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface UserProfile {
   username: string;
@@ -83,10 +89,9 @@ const ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const ProfileScreen = ({ navigation }: any) => {
-  const { user, signOut, loading } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
-    username: user?.email?.split('@')[0] || 'User',
-    joinDate: user?.created_at || new Date().toISOString(),
+    username: 'Devon',
+    joinDate: new Date().toISOString(),
     totalAnalyses: 0,
     bestScore: 0,
     currentStreak: 0,
@@ -217,68 +222,17 @@ export const ProfileScreen = ({ navigation }: any) => {
 
   const unlockedAchievements = profile.achievements.filter(a => a.isUnlocked);
   const totalAchievements = profile.achievements.length;
-
-  // Show login screen if user is not authenticated
-  if (!loading && !user) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loginContainer}>
-          <View style={styles.loginContent}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoEmoji}>💪</Text>
-              </View>
-              <Text style={styles.appName}>Muscle AI</Text>
-              <Text style={styles.tagline}>Your Personal Fitness Analyzer</Text>
-            </View>
-
-            <View style={styles.welcomeSection}>
-              <Text style={styles.welcomeTitle}>Welcome Back</Text>
-              <Text style={styles.welcomeSubtitle}>
-                Sign in to access your fitness journey
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.googleButton}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.googleButtonIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <View style={styles.featuresSection}>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>📸</Text>
-                <Text style={styles.featureText}>Analyze Photos</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>📊</Text>
-                <Text style={styles.featureText}>Track Progress</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>🎯</Text>
-                <Text style={styles.featureText}>Get Insights</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const averageScore = profile.totalAnalyses > 0 ? Math.round(profile.bestScore * 0.8) : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Profile</Text>
-              <Text style={styles.subtitle}>
-                Track your achievements and progress
-              </Text>
-            </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <LinearGradient
+        colors={['#A67C52', '#8B4513', '#2F1B14', '#1A1A1A', '#0F0F0F', '#0A0A0A']}
+        style={styles.backgroundGradient}
+      >
+          {/* Header with Settings */}
+          <View style={styles.header}>
+            <View style={styles.headerSpacer} />
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={async () => {
@@ -288,145 +242,123 @@ export const ProfileScreen = ({ navigation }: any) => {
                 else navigation.navigate('Settings');
               }}
             >
-              <Icon name="cog-outline" size={24} color={COLORS.text} />
+              <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* User Info Card */}
-        <Card style={styles.profileCard}>
-          <View style={styles.profileHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {profile.username.charAt(0).toUpperCase()}
-              </Text>
+          {/* Profile Avatar */}
+          <View style={styles.profileAvatarContainer}>
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {profile.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.username}>{profile.username}</Text>
-              <Text style={styles.joinDate}>
-                Joined {new Date(profile.joinDate).toLocaleDateString()}
-              </Text>
+          </View>
+
+          {/* User Info */}
+          <View style={styles.userInfo}>
+            <View style={styles.nameContainer}>
+              <Text style={styles.userName}>{profile.username}</Text>
+              <View style={styles.proBadge}>
+                <Text style={styles.proText}>PRO</Text>
+              </View>
             </View>
+            <Text style={styles.userHandle}>@{profile.username}</Text>
+            <Text style={styles.userBio}>Fitness Enthusiast | Building Strength Daily</Text>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={styles.editButton}
+              style={styles.editProfileButton}
               onPress={() => {
                 setEditUsername(profile.username);
                 setShowEditModal(true);
               }}
             >
-              <Text style={styles.editButtonText}>Edit</Text>
+              <Icon name="pencil" size={16} color="#FFFFFF" />
+              <Text style={styles.editProfileText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shareQRButton}>
+              <Icon name="qrcode" size={16} color="#FFFFFF" />
+              <Text style={styles.shareQRText}>Share QR</Text>
             </TouchableOpacity>
           </View>
-        </Card>
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
-          <View style={styles.statsRow}>
-            <StatBadge 
-              label="Total Analyses" 
-              value={profile.totalAnalyses.toString()} 
-              unit="scans" 
-              icon="📊" 
-              style={styles.statCard} 
-            />
-            <StatBadge 
-              label="Best Score" 
-              value={profile.bestScore.toString()} 
-              unit="pts" 
-              icon="🏆" 
-              style={styles.statCard} 
-            />
+          {/* Statistics Cards */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Total Analyses</Text>
+              <Text style={styles.statValue}>{profile.totalAnalyses}</Text>
+              <WaveGraph color="#4A90E2" width={60} height={20} />
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Average Score</Text>
+              <Text style={styles.statValue}>{averageScore}</Text>
+              <WaveGraph color="#50C878" width={60} height={20} />
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Best</Text>
+              <Text style={styles.statValue}>{profile.bestScore}</Text>
+              <WaveGraph color="#FF6B35" width={60} height={20} />
+            </View>
           </View>
-          <View style={styles.statsRow}>
-            <StatBadge 
-              label="Achievements" 
-              value={`${unlockedAchievements.length}/${totalAchievements}`} 
-              unit="unlocked" 
-              icon="🎖️" 
-              style={styles.statCard} 
-            />
-            <StatBadge 
-              label="Current Streak" 
-              value={profile.currentStreak.toString()} 
-              unit="days" 
-              icon="🔥" 
-              style={styles.statCard} 
-            />
-          </View>
-        </View>
 
-        {/* Achievements Section */}
-        <View style={styles.achievementsSection}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
-          <View style={styles.achievementsList}>
-            {profile.achievements.map((achievement) => (
-              <View
-                key={achievement.id}
-                style={[
-                  styles.achievementItem,
-                  !achievement.isUnlocked && styles.achievementLocked
-                ]}
-              >
-                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-                <View style={styles.achievementInfo}>
-                  <Text style={[
-                    styles.achievementTitle,
-                    !achievement.isUnlocked && styles.achievementTitleLocked
-                  ]}>
-                    {achievement.title}
-                  </Text>
-                  <Text style={[
-                    styles.achievementDescription,
-                    !achievement.isUnlocked && styles.achievementDescriptionLocked
-                  ]}>
-                    {achievement.description}
-                  </Text>
-                  {achievement.isUnlocked && achievement.unlockedAt && (
-                    <Text style={styles.achievementDate}>
-                      Unlocked {new Date(achievement.unlockedAt).toLocaleDateString()}
+          {/* This Week's Highlights */}
+          <View style={styles.highlightsSection}>
+            <Text style={styles.highlightsTitle}>This Week's Highlights</Text>
+            <View style={styles.performanceCard}>
+              <View style={styles.performanceHeader}>
+                <Text style={styles.performanceTitle}>Performance Up</Text>
+                <WaveGraph color="#50C878" width={80} height={25} />
+              </View>
+              <View style={styles.performanceMetric}>
+                <Icon name="trending-up" size={16} color="#50C878" />
+                <Text style={styles.performanceText}>+15%</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Achievements */}
+          <View style={styles.achievementsSection}>
+            <Text style={styles.sectionTitle}>Achievements</Text>
+            <View style={styles.achievementsList}>
+              {profile.achievements.slice(0, 3).map((achievement) => (
+                <View
+                  key={achievement.id}
+                  style={[
+                    styles.achievementItem,
+                    !achievement.isUnlocked && styles.achievementLocked
+                  ]}
+                >
+                  <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                  <View style={styles.achievementInfo}>
+                    <Text style={[
+                      styles.achievementTitle,
+                      !achievement.isUnlocked && styles.achievementTitleLocked
+                    ]}>
+                      {achievement.title}
                     </Text>
+                    <Text style={[
+                      styles.achievementDescription,
+                      !achievement.isUnlocked && styles.achievementDescriptionLocked
+                    ]}>
+                      {achievement.description}
+                    </Text>
+                  </View>
+                  {achievement.isUnlocked && (
+                    <View style={styles.achievementBadge}>
+                      <Text style={styles.achievementBadgeText}>✓</Text>
+                    </View>
                   )}
                 </View>
-                {achievement.isUnlocked && (
-                  <View style={styles.achievementBadge}>
-                    <Text style={styles.achievementBadgeText}>✓</Text>
-                  </View>
-                )}
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* Actions Section */}
-        <View style={styles.actionsSection}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('History')}
-          >
-            <Text style={styles.actionButtonText}>📚 View Full History</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={async () => {
-              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              await signOut();
-            }}
-          >
-            <Text style={styles.actionButtonText}>🚪 Sign Out</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.dangerButton]}
-            onPress={resetProfile}
-          >
-            <Text style={[styles.actionButtonText, styles.dangerButtonText]}>
-              🔄 Reset Profile
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </LinearGradient>
 
       {/* Edit Username Modal */}
       <Modal
@@ -462,119 +394,243 @@ export const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  backgroundGradient: {
+    minHeight: '100%',
+    paddingBottom: 40,
+  },
+  backgroundImageContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: screenWidth * 0.6,
+    height: 400,
+    zIndex: 0,
+  },
+  fitnessModelSilhouette: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 20,
+    marginTop: 50,
+    marginRight: 20,
+    // Simulate the fitness model silhouette
+    shadowColor: '#000',
+    shadowOffset: { width: -5, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
   scrollContent: {
-    padding: 20,
+    paddingBottom: 40,
+    zIndex: 1,
   },
   header: {
-    marginBottom: 30,
-  },
-  headerContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
-  headerText: {
-    flex: 1,
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   settingsButton: {
-    padding: 8,
-    marginTop: -8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  profileCard: {
-    padding: 20,
-    marginBottom: 30,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+  },
+  profileAvatarContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  avatarWrapper: {
+    padding: 4,
+    borderRadius: 70,
+    backgroundColor: '#FF6B35',
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F5F5DC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   avatarText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  userInfo: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  userName: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    marginRight: 10,
   },
-  profileInfo: {
-    flex: 1,
+  proBadge: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  username: {
-    fontSize: 20,
+  proText: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#FFFFFF',
+  },
+  userHandle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 4,
   },
-  joinDate: {
+  userBio: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
   },
-  editButton: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 15,
+    marginBottom: 30,
   },
-  editButtonText: {
+  editProfileButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
+  },
+  editProfileText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
   },
-  statsSection: {
+  shareQRButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
+  },
+  shareQRText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 15,
+    marginBottom: 30,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  highlightsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  highlightsTitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 15,
+  },
+  performanceCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+  },
+  performanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  performanceTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  performanceMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  performanceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#50C878',
+  },
+  achievementsSection: {
+    paddingHorizontal: 20,
     marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#FFFFFF',
     marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 15,
-  },
-  statCard: {
-    flex: 1,
-  },
-  achievementsSection: {
-    marginBottom: 30,
   },
   achievementsList: {
     gap: 12,
   },
   achievementItem: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -593,30 +649,25 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   achievementTitleLocked: {
-    color: COLORS.textSecondary,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   achievementDescription: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     lineHeight: 18,
   },
   achievementDescriptionLocked: {
-    color: COLORS.textSecondary,
-  },
-  achievementDate: {
-    fontSize: 12,
-    color: COLORS.primary,
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
   achievementBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.success,
+    backgroundColor: '#50C878',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -624,29 +675,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
-  },
-  actionsSection: {
-    gap: 12,
-  },
-  actionButton: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  dangerButton: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.danger,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  dangerButtonText: {
-    color: COLORS.danger,
   },
   modalOverlay: {
     flex: 1,
@@ -701,105 +729,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  // Login screen styles
-  loginContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loginContent: {
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoEmoji: {
-    fontSize: 40,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  welcomeSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  googleButtonIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4285F4',
-    marginRight: 12,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  featuresSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  featureItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  featureIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  featureText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
   },
 });

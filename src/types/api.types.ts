@@ -1,6 +1,6 @@
 // API Types and Interfaces
 
-export interface TogetherAIConfig {
+export interface AIServiceConfig {
   apiKey: string;
   apiUrl: string;
   timeout: number;
@@ -33,7 +33,7 @@ export interface ImageContent {
   };
 }
 
-export interface TogetherAIRequest {
+export interface AIChatRequest {
   model: string;
   messages: APIRequestMessage[];
   max_tokens: number;

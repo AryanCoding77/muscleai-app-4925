@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   Modal,
+  TextInput,
   ActivityIndicator,
   Dimensions,
   SafeAreaView,
@@ -16,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAPIAnalysis } from '../hooks/useAPIAnalysis';
 import { COLORS } from '../config/constants';
+import { APIErrorCode } from '../types/api.types';
 
 const { width } = Dimensions.get('window');
 
@@ -83,32 +85,35 @@ export const AnalyzeScreen = ({ navigation }: any) => {
         });
       } else {
         console.error('❌ Analysis returned null result');
+        const actions: any[] = [
+          { text: 'Retry', onPress: () => handleAnalyze() },
+          { text: 'OK', style: 'cancel' },
+        ];
         Alert.alert(
           'Analysis Failed', 
           state.error?.userMessage || 'Analysis returned no results. Please try again.',
-          [
-            { text: 'Retry', onPress: () => handleAnalyze() },
-            { text: 'OK', style: 'cancel' }
-          ]
+          actions
         );
       }
     } catch (error) {
       console.error('💥 Analysis exception in AnalyzeScreen:', error);
       const errorMessage = (error as any)?.message || 'Unknown error occurred';
       
+      const actions: any[] = [
+        { text: 'Retry', onPress: () => handleAnalyze() },
+        { text: 'Cancel', style: 'cancel' },
+      ];
       Alert.alert(
         'Analysis Error', 
         `${errorMessage}\n\nTip: Check the terminal for detailed error logs.`,
-        [
-          { text: 'Retry', onPress: () => handleAnalyze() },
-          { text: 'Cancel', style: 'cancel' }
-        ]
+        actions
       );
     } finally {
       setShowProgress(false);
       console.log('🏁 Analysis UI process completed');
     }
   };
+
 
   const showCacheStats = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -213,6 +218,7 @@ export const AnalyzeScreen = ({ navigation }: any) => {
           >
             <Text style={styles.utilityButtonText}>🗑️ Clear Cache</Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView>
 
@@ -249,6 +255,7 @@ export const AnalyzeScreen = ({ navigation }: any) => {
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 };

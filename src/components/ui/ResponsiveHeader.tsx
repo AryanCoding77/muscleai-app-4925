@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: COLORS.surface,
     borderRadius: 20,
-    marginHorizontal: 20,
+    marginHorizontal: 8,
     marginTop: 40,
     marginBottom: 20,
     ...Platform.select({
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   containerTablet: {
     paddingHorizontal: 32,
     paddingVertical: 24,
-    marginHorizontal: 32,
+    marginHorizontal: 12,
     marginTop: 60,
     marginBottom: 32,
     borderRadius: 24,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   containerSmall: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginHorizontal: 16,
+    marginHorizontal: 6,
     marginTop: 30,
     marginBottom: 16,
     borderRadius: 16,
