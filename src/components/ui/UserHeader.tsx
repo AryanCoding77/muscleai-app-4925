@@ -72,7 +72,7 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginHorizontal: 16,
+    marginHorizontal: 4,
     marginTop: 0,
     borderRadius: 28,
     overflow: 'hidden',

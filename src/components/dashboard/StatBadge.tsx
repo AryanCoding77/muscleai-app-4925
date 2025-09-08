@@ -9,9 +9,10 @@ interface StatBadgeProps {
   unit?: string;
   icon?: string; // emoji or small text icon
   style?: StyleProp<ViewStyle>;
+  valueColor?: string; // custom color for the value text
 }
 
-const StatBadgeComponent: React.FC<StatBadgeProps> = ({ label, value, unit, icon, style }) => {
+const StatBadgeComponent: React.FC<StatBadgeProps> = ({ label, value, unit, icon, style, valueColor }) => {
   return (
     <Card style={[styles.card, style]}>
       <View style={styles.topRow}>
@@ -19,7 +20,7 @@ const StatBadgeComponent: React.FC<StatBadgeProps> = ({ label, value, unit, icon
         {!!icon && <Text style={styles.icon}>{icon}</Text>}
       </View>
       <View style={styles.bottomRow}>
-        <Text style={styles.value}>{value}</Text>
+        <Text style={[styles.value, valueColor && { color: valueColor }]}>{value}</Text>
         {!!unit && <Text style={styles.unit}> {unit}</Text>}
       </View>
     </Card>

@@ -1,6 +1,6 @@
 // History Screen - View past analyses with timeline and comparison
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,12 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from '@react-navigation/native';
 import { MuscleAnalysisResponse } from '../types/api.types';
 import { DataTransformer } from '../services/data/DataTransformer';
 import { COLORS } from '../config/constants';
+import { storageService } from '../services/storage';
 
 interface HistoryItem {
   id: string;
@@ -35,15 +36,24 @@ export const HistoryScreen = ({ navigation }: any) => {
     loadHistory();
   }, []);
 
+  // Reload history whenever the History screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+      return () => {};
+    }, [])
+  );
+
   const loadHistory = async () => {
     try {
-      const stored = await AsyncStorage.getItem('analysis_history');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setHistory(parsed.sort((a: HistoryItem, b: HistoryItem) => 
-          new Date(b.date).getTime() - new Date(a.date).getTime()
-        ));
-      }
+      const list = await storageService.getAnalysisHistory();
+      const mapped: HistoryItem[] = list.map((x) => ({
+        id: x.id,
+        date: new Date(x.timestamp),
+        imageUri: x.imageUri,
+        analysis: x.analysis as MuscleAnalysisResponse,
+      }));
+      setHistory(mapped.sort((a, b) => b.date.getTime() - a.date.getTime()));
     } catch (error) {
       console.error('Failed to load history:', error);
     } finally {
@@ -92,7 +102,7 @@ export const HistoryScreen = ({ navigation }: any) => {
           onPress: async () => {
             const newHistory = history.filter(h => h.id !== id);
             setHistory(newHistory);
-            await AsyncStorage.setItem('analysis_history', JSON.stringify(newHistory));
+            await storageService.removeAnalysisById(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
@@ -111,7 +121,7 @@ export const HistoryScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             setHistory([]);
-            await AsyncStorage.removeItem('analysis_history');
+            await storageService.clearAnalysisHistory();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },

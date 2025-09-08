@@ -16,6 +16,7 @@ import { ComparisonScreen } from './src/screens/ComparisonScreen';
 import { COLORS } from './src/config/constants';
 import { CustomTabBar } from './src/components/navigation/CustomTabBar';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import ExerciseDetailScreen from './src/screens/ExerciseDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -37,6 +38,7 @@ function StackNavigator() {
       <Stack.Screen name="History" component={HistoryScreen as unknown as React.ComponentType<any>} />
       <Stack.Screen name="Comparison" component={ComparisonScreen as unknown as React.ComponentType<any>} />
       <Stack.Screen name="Settings" component={SettingsScreen as unknown as React.ComponentType<any>} />
+      <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen as unknown as React.ComponentType<any>} />
     </Stack.Navigator>
   );
 }

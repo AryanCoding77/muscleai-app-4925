@@ -30,7 +30,6 @@ export const HomeScreen = ({ navigation }: any) => {
     analyzeImage,
     cancel,
     getCacheStats,
-    clearCache,
   } = useAPIAnalysis();
 
   const pickImage = async (source: 'camera' | 'gallery') => {
@@ -108,24 +107,7 @@ export const HomeScreen = ({ navigation }: any) => {
     );
   };
 
-  const handleClearCache = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      'Clear Cache',
-      'This will remove all cached analysis results. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear', 
-          style: 'destructive',
-          onPress: async () => {
-            await clearCache();
-            Alert.alert('Success', 'Cache cleared successfully');
-          }
-        }
-      ]
-    );
-  };
+  // Removed clear cache action per requirement to keep cache for lifetime
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,13 +182,6 @@ export const HomeScreen = ({ navigation }: any) => {
             onPress={showCacheStats}
           >
             <Text style={styles.utilityButtonText}>📊 Cache Stats</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.utilityButton}
-            onPress={handleClearCache}
-          >
-            <Text style={styles.utilityButtonText}>🗑️ Clear Cache</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

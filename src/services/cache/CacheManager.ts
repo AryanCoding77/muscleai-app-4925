@@ -35,8 +35,8 @@ export class CacheManager {
 
       const cacheEntry: CacheEntry<MuscleAnalysisResponse> = JSON.parse(cachedData);
 
-      // Check if cache is expired
-      if (Date.now() > cacheEntry.expiresAt) {
+      // Check if cache is expired (0 or undefined means no expiry / lifetime)
+      if (cacheEntry.expiresAt && cacheEntry.expiresAt > 0 && Date.now() > cacheEntry.expiresAt) {
         await this.removeCacheEntry(cacheKey);
         return null;
       }
@@ -64,7 +64,8 @@ export class CacheManager {
       const cacheEntry: CacheEntry<MuscleAnalysisResponse> = {
         data: analysis,
         timestamp: Date.now(),
-        expiresAt: Date.now() + this.cacheDuration,
+        // If cacheDuration <= 0, store as lifetime (expiresAt = 0)
+        expiresAt: this.cacheDuration > 0 ? Date.now() + this.cacheDuration : 0,
         imageHash,
       };
 

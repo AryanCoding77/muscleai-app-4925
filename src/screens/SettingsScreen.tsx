@@ -94,6 +94,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+    marginTop: 20,
   },
   headerIconBtn: {
     width: 36,
@@ -205,6 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     marginTop: 24,
+    marginBottom: 30,
     gap: 8,
   },
   logoutText: {

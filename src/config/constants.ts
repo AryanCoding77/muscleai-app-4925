@@ -21,7 +21,7 @@ export const IMAGE_CONFIG = {
 };
 
 export const CACHE_CONFIG = {
-  DEFAULT_DURATION: 86400000, // 24 hours
+  DEFAULT_DURATION: 0, // 0 = no expiry (lifetime)
   MAX_CACHE_SIZE: 50, // Maximum number of cached analyses
   STORAGE_KEY_PREFIX: 'muscle_ai_cache_',
 };

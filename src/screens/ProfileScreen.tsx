@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../config/constants';
 import { WaveGraph } from '../components/ui/WaveGraph';
 import { Card } from '../components/ui/Card';
@@ -31,6 +32,7 @@ interface UserProfile {
   totalAnalyses: number;
   bestScore: number;
   currentStreak: number;
+  improvement?: number;
   achievements: Achievement[];
 }
 
@@ -104,6 +106,14 @@ export const ProfileScreen = ({ navigation }: any) => {
     loadProfile();
   }, []);
 
+  // Reload profile data whenever the Profile tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      return () => {};
+    }, [])
+  );
+
   const loadProfile = async () => {
     try {
       // Load analysis history to calculate stats
@@ -113,6 +123,19 @@ export const ProfileScreen = ({ navigation }: any) => {
       const totalAnalyses = history.length;
       const scores = history.map((a: AnalysisResult) => a.overallScore || 0);
       const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
+      
+      // Calculate improvement: compare earliest score vs average of most recent up to 3 analyses
+      let improvement = 0;
+      if (totalAnalyses >= 2) {
+        const earliestScore = scores[scores.length - 1];
+        const recentScores = scores.slice(0, Math.min(3, scores.length));
+        const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+        if (earliestScore > 0) {
+          improvement = ((recentAvg - earliestScore) / earliestScore) * 100;
+        } else {
+          improvement = recentAvg > 0 ? 100 : 0;
+        }
+      }
       
       // Calculate achievements
       const updatedAchievements = ACHIEVEMENTS.map(achievement => {
@@ -157,6 +180,7 @@ export const ProfileScreen = ({ navigation }: any) => {
         ...(savedProfile || {}),
         totalAnalyses,
         bestScore,
+        improvement: Math.round(improvement),
         achievements: updatedAchievements,
       };
 
@@ -312,11 +336,53 @@ export const ProfileScreen = ({ navigation }: any) => {
             <View style={styles.performanceCard}>
               <View style={styles.performanceHeader}>
                 <Text style={styles.performanceTitle}>Performance Up</Text>
-                <WaveGraph color="#50C878" width={80} height={25} />
+                <WaveGraph 
+                  color={
+                    profile.improvement && profile.improvement > 0 
+                      ? '#50C878'  // Green for positive
+                      : profile.improvement && profile.improvement < 0 
+                      ? '#EF4444'  // Red for negative
+                      : '#FFFFFF'  // White for 0
+                  } 
+                  width={80} 
+                  height={25} 
+                />
               </View>
               <View style={styles.performanceMetric}>
-                <Icon name="trending-up" size={16} color="#50C878" />
-                <Text style={styles.performanceText}>+15%</Text>
+                <Icon 
+                  name={
+                    profile.improvement && profile.improvement > 0 
+                      ? "trending-up" 
+                      : profile.improvement && profile.improvement < 0 
+                      ? "trending-down"
+                      : "trending-neutral"
+                  } 
+                  size={16} 
+                  color={
+                    profile.improvement && profile.improvement > 0 
+                      ? '#50C878'  // Green for positive
+                      : profile.improvement && profile.improvement < 0 
+                      ? '#EF4444'  // Red for negative
+                      : '#FFFFFF'  // White for 0
+                  }
+                />
+                <Text style={[
+                  styles.performanceText,
+                  {
+                    color: profile.improvement && profile.improvement > 0 
+                      ? '#50C878'  // Green for positive
+                      : profile.improvement && profile.improvement < 0 
+                      ? '#EF4444'  // Red for negative
+                      : '#FFFFFF'  // White for 0
+                  }
+                ]}>
+                  {profile.improvement && profile.improvement > 0 
+                    ? `+${profile.improvement}%` 
+                    : profile.improvement && profile.improvement < 0 
+                    ? `${profile.improvement}%`
+                    : '0%'
+                  }
+                </Text>
               </View>
             </View>
           </View>
@@ -404,7 +470,7 @@ const styles = StyleSheet.create({
   },
   backgroundGradient: {
     minHeight: '100%',
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
   backgroundImageContainer: {
     position: 'absolute',
@@ -427,7 +493,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 0,
     zIndex: 1,
   },
   header: {
@@ -435,7 +501,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 40,
     paddingBottom: 10,
   },
   headerSpacer: {

@@ -27,6 +27,28 @@ class StorageService {
     }
   }
 
+  // Replace entire analysis history (utility for screens that edit history)
+  async setAnalysisHistory(history: AnalysisResult[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(this.ANALYSIS_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.error('Error setting analysis history:', error);
+      throw error;
+    }
+  }
+
+  // Remove a specific analysis by id
+  async removeAnalysisById(id: string): Promise<void> {
+    try {
+      const history = await this.getAnalysisHistory();
+      const filtered = history.filter((h) => h.id !== id);
+      await this.setAnalysisHistory(filtered);
+    } catch (error) {
+      console.error('Error removing analysis by id:', error);
+      throw error;
+    }
+  }
+
   async clearAnalysisHistory(): Promise<void> {
     try {
       await AsyncStorage.removeItem(this.ANALYSIS_HISTORY_KEY);

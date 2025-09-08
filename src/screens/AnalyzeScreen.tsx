@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useAPIAnalysis } from '../hooks/useAPIAnalysis';
 import { COLORS } from '../config/constants';
 import { APIErrorCode } from '../types/api.types';
+import { storageService } from '../services/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -31,7 +32,6 @@ export const AnalyzeScreen = ({ navigation }: any) => {
     analyzeImage,
     cancel,
     getCacheStats,
-    clearCache,
   } = useAPIAnalysis();
 
   const pickImage = async (source: 'camera' | 'gallery') => {
@@ -78,7 +78,26 @@ export const AnalyzeScreen = ({ navigation }: any) => {
       const analysisResult = await analyzeImage(selectedImage);
       
       if (analysisResult) {
-        console.log('✅ Analysis completed successfully, navigating to results');
+        console.log('✅ Analysis completed successfully, saving to history and navigating to results');
+        try {
+          const overallScore = analysisResult.overall_assessment?.overall_physique_score ?? 0;
+          const muscleGroup =
+            analysisResult.overall_assessment?.strongest_muscles?.[0] ||
+            analysisResult.overall_assessment?.weakest_muscles?.[0] ||
+            undefined;
+
+          await storageService.saveAnalysisResult({
+            id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            timestamp: new Date().toISOString(),
+            imageUri: selectedImage,
+            muscleGroup,
+            overallScore,
+            analysis: analysisResult,
+          });
+        } catch (e) {
+          console.error('Error saving analysis result:', e);
+        }
+
         navigation.navigate('Results', { 
           analysis: analysisResult,
           imageUri: selectedImage
@@ -126,25 +145,6 @@ export const AnalyzeScreen = ({ navigation }: any) => {
     );
   };
 
-  const handleClearCache = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      'Clear Cache',
-      'This will remove all cached analysis results. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear', 
-          style: 'destructive',
-          onPress: async () => {
-            await clearCache();
-            Alert.alert('Success', 'Cache cleared successfully');
-          }
-        }
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -156,24 +156,6 @@ export const AnalyzeScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
-        {/* Action Section */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.cameraButton]}
-            onPress={() => pickImage('camera')}
-          >
-            <Text style={styles.actionButtonIcon}>📷</Text>
-            <Text style={styles.actionButtonText}>Take Photo</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.galleryButton]}
-            onPress={() => pickImage('gallery')}
-          >
-            <Text style={styles.actionButtonIcon}>🖼️</Text>
-            <Text style={styles.actionButtonText}>Choose from Gallery</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Selected Image Preview */}
         {selectedImage && (
@@ -189,19 +171,35 @@ export const AnalyzeScreen = ({ navigation }: any) => {
                 {state.isLoading ? '🔄 Analyzing...' : '🔍 Analyze Muscles'}
               </Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.reuploadButton}
+              onPress={() => pickImage('gallery')}
+              disabled={state.isLoading}
+            >
+              <Text style={styles.reuploadButtonText}>
+                📷 Re-upload
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* How it Works */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>How it Works</Text>
-          <View style={styles.stepContainer}>
-            <Text style={styles.step}>📸 Upload a clear muscle photo</Text>
-            <Text style={styles.step}>🤖 AI analyzes muscle development</Text>
-            <Text style={styles.step}>📊 Get detailed scores & recommendations</Text>
-            <Text style={styles.step}>📈 Track progress over time</Text>
+        {/* Upload Image Section - Only show when no image is selected */}
+        {!selectedImage && (
+          <View style={styles.uploadSection}>
+            <TouchableOpacity 
+              style={styles.uploadArea}
+              onPress={() => pickImage('gallery')}
+            >
+              <View style={styles.cloudIcon}>
+                <Text style={styles.cloudText}>☁️</Text>
+                <Text style={styles.uploadArrow}>↑</Text>
+              </View>
+              <Text style={styles.uploadText}>Drag file here to upload</Text>
+              <Text style={styles.uploadSubtext}>Max file size: 5mb</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         {/* Utility Buttons */}
         <View style={styles.utilitySection}>
@@ -211,14 +209,6 @@ export const AnalyzeScreen = ({ navigation }: any) => {
           >
             <Text style={styles.utilityButtonText}>📊 Cache Stats</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.utilityButton}
-            onPress={handleClearCache}
-          >
-            <Text style={styles.utilityButtonText}>🗑️ Clear Cache</Text>
-          </TouchableOpacity>
-
         </View>
       </ScrollView>
 
@@ -350,6 +340,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  reuploadButton: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 2,
+    borderColor: COLORS.textSecondary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  reuploadButtonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   infoSection: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
@@ -365,10 +374,46 @@ const styles = StyleSheet.create({
   stepContainer: {
     gap: 12,
   },
-  step: {
-    fontSize: 16,
+  uploadSection: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+  },
+  uploadArea: {
+    borderWidth: 2,
+    borderColor: '#4A90E2',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    backgroundColor: 'rgba(74, 144, 226, 0.05)',
+  },
+  cloudIcon: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cloudText: {
+    fontSize: 48,
+    color: '#4A90E2',
+  },
+  uploadArrow: {
+    position: 'absolute',
+    fontSize: 24,
+    color: '#4A90E2',
+    top: 12,
+    fontWeight: 'bold',
+  },
+  uploadText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  uploadSubtext: {
+    fontSize: 14,
     color: COLORS.textSecondary,
-    lineHeight: 24,
   },
   utilitySection: {
     gap: 12,

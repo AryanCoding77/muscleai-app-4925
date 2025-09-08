@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   SafeAreaView,
   Alert,
   Dimensions,
+  Image,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../config/constants';
 import { Card } from '../components/ui/Card';
 import { StatBadge } from '../components/dashboard/StatBadge';
@@ -25,6 +27,14 @@ export const ProgressScreen = ({ navigation }: any) => {
   useEffect(() => {
     loadAnalysisHistory();
   }, []);
+
+  // Reload history whenever the Progress tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      loadAnalysisHistory();
+      return () => {};
+    }, [])
+  );
 
   const loadAnalysisHistory = async () => {
     try {
@@ -76,13 +86,18 @@ export const ProgressScreen = ({ navigation }: any) => {
     const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
     const bestScore = Math.max(...scores);
     
-    // Calculate improvement (compare first vs last 3 analyses)
+    // Calculate improvement: compare earliest score vs average of most recent up to 3 analyses
+    // History is saved newest-first, so earliest is the last element
     let improvement = 0;
     if (totalAnalyses >= 2) {
-      const firstScore = scores[0];
-      const recentScores = scores.slice(-3);
+      const earliestScore = scores[scores.length - 1];
+      const recentScores = scores.slice(0, Math.min(3, scores.length));
       const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
-      improvement = ((recentAvg - firstScore) / firstScore) * 100;
+      if (earliestScore > 0) {
+        improvement = ((recentAvg - earliestScore) / earliestScore) * 100;
+      } else {
+        improvement = recentAvg > 0 ? 100 : 0;
+      }
     }
 
     return {
@@ -120,6 +135,74 @@ export const ProgressScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
+        {/* Most Recent Analysis */}
+        {analysisHistory.length > 0 && (
+          <Card style={styles.recentCard}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.recentTitle}>Most Recent Analysis</Text>
+              <Text style={styles.recentDate}>
+                {new Date(analysisHistory[0].timestamp).toLocaleString()}
+              </Text>
+            </View>
+
+            {/* Scores row */}
+            <View style={styles.recentStatsRow}>
+              <View style={styles.recentStatItem}>
+                <Text style={styles.recentStatLabel}>Overall Score</Text>
+                <Text style={styles.recentStatValue}>
+                  {(analysisHistory[0].overallScore ?? 0).toString()}
+                </Text>
+              </View>
+              <View style={styles.recentStatItem}>
+                <Text style={styles.recentStatLabel}>Symmetry</Text>
+                <Text style={styles.recentStatValue}>
+                  {(
+                    (analysisHistory[0].analysis?.overall_assessment?.body_symmetry_score ?? 0)
+                  ).toString()}
+                </Text>
+              </View>
+              <View style={styles.recentStatItem}>
+                <Text style={styles.recentStatLabel}>Confidence</Text>
+                <Text style={styles.recentStatValue}>
+                  {(
+                    (analysisHistory[0].analysis?.analysis_metadata?.analysis_confidence ?? 0)
+                  ).toString()}%
+                </Text>
+              </View>
+            </View>
+
+            {/* Muscle chips */}
+            <View style={styles.chipsRow}>
+              {(analysisHistory[0].analysis?.overall_assessment?.strongest_muscles || [])
+                .slice(0, 3)
+                .map((m: string, idx: number) => (
+                  <View key={`strong-${idx}`} style={[styles.chip, styles.strongChip]}>
+                    <Text style={[styles.chipText, styles.strongChipText]}>Strong: {m}</Text>
+                  </View>
+                ))}
+              {(analysisHistory[0].analysis?.overall_assessment?.weakest_muscles || [])
+                .slice(0, 3)
+                .map((m: string, idx: number) => (
+                  <View key={`weak-${idx}`} style={[styles.chip, styles.weakChip]}>
+                    <Text style={[styles.chipText, styles.weakChipText]}>Weak: {m}</Text>
+                  </View>
+                ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.viewReportBtn}
+              onPress={() =>
+                navigation.navigate('Results', {
+                  analysis: analysisHistory[0].analysis,
+                  imageUri: analysisHistory[0].imageUri,
+                })
+              }
+            >
+              <Text style={styles.viewReportText}>View Full Report</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
+
         {/* Progress Stats */}
         <View style={styles.statsSection}>
           <View style={styles.statsRow}>
@@ -151,7 +234,14 @@ export const ProgressScreen = ({ navigation }: any) => {
               value={stats.improvement > 0 ? `+${stats.improvement}` : stats.improvement.toString()} 
               unit="%" 
               icon={stats.improvement >= 0 ? "📈" : "📉"} 
-              style={styles.statCard} 
+              style={styles.statCard}
+              valueColor={
+                stats.improvement > 0 
+                  ? COLORS.success 
+                  : stats.improvement < 0 
+                  ? COLORS.danger 
+                  : '#FFFFFF'
+              }
             />
           </View>
         </View>
@@ -186,9 +276,15 @@ export const ProgressScreen = ({ navigation }: any) => {
                 <TouchableOpacity
                   key={analysis.id}
                   style={styles.historyItem}
-                  onPress={() => navigateToComparison(analysis)}
+                  onPress={() =>
+                    navigation.navigate('Results', {
+                      analysis: analysis.analysis,
+                      imageUri: analysis.imageUri,
+                    })
+                  }
                 >
                   <View style={styles.historyContent}>
+                    <Image source={{ uri: analysis.imageUri }} style={styles.historyThumbnail} />
                     <View style={styles.historyInfo}>
                       <Text style={styles.historyDate}>
                         {new Date(analysis.timestamp).toLocaleDateString()}
@@ -203,6 +299,34 @@ export const ProgressScreen = ({ navigation }: any) => {
                       </Text>
                       <Text style={styles.scoreLabel}>pts</Text>
                     </View>
+                    <View style={styles.spacer} />
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Alert.alert(
+                          'Delete Analysis',
+                          'Are you sure you want to delete this analysis?',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await storageService.removeAnalysisById(analysis.id);
+                                  loadAnalysisHistory();
+                                } catch (error) {
+                                  console.error('Error deleting analysis:', error);
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={styles.deleteIcon}>✕</Text>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -394,5 +518,113 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
+  },
+  // Recent analysis styles
+  recentCard: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  recentTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  recentDate: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  recentStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  recentStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  recentStatLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  recentStatValue: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  strongChip: {
+    borderColor: COLORS.success,
+    backgroundColor: 'rgba(52, 199, 89, 0.15)',
+  },
+  strongChipText: {
+    color: COLORS.success,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  weakChip: {
+    borderColor: COLORS.warning,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+  },
+  weakChipText: {
+    color: COLORS.warning,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewReportBtn: {
+    marginTop: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  viewReportText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  // History item styles
+  historyThumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  deleteButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteIcon: {
+    fontSize: 18,
+    color: COLORS.danger,
+    fontWeight: 'bold',
+  },
+  spacer: {
+    width: 12,
   },
 });

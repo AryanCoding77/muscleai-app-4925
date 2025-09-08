@@ -291,9 +291,6 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ route, navigation 
                         </Text>
                       </View>
                       <View style={styles.muscleDropdownRight}>
-                        <Text style={styles.exerciseCount}>
-                          {muscleData.exerciseCount} exercise{muscleData.exerciseCount !== 1 ? 's' : ''}
-                        </Text>
                         <Text style={[styles.dropdownArrow, { 
                           transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] 
                         }]}>
@@ -306,7 +303,11 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ route, navigation 
                       <View style={styles.exerciseList}>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.exerciseScroll}>
                           {muscleData.exercises.map((exercise) => (
-                            <View key={exercise.id} style={styles.exerciseCard}>
+                            <TouchableOpacity 
+                              key={exercise.id} 
+                              style={styles.exerciseCard}
+                              onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
+                            >
                               <ExpoImage
                                 source={{ uri: exercise.gifUrl }}
                                 style={styles.exerciseGif}
@@ -316,7 +317,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ route, navigation 
                               />
                               <Text style={styles.exerciseName} numberOfLines={2}>{exercise.name}</Text>
                               <Text style={styles.exerciseMeta}>{exercise.equipment} • {exercise.bodyPart}</Text>
-                            </View>
+                            </TouchableOpacity>
                           ))}
                         </ScrollView>
                       </View>
@@ -670,7 +671,8 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   recommendationCard: {
     backgroundColor: '#1A1A1A',
@@ -693,7 +695,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   exerciseCard: {
-    width: 140,
+    width: 160,
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
     borderWidth: 1,
@@ -702,8 +704,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   exerciseGif: {
-    width: 140,
-    height: 120,
+    width: 160,
+    height: 180,
     backgroundColor: '#0F0F0F',
   },
   exerciseName: {
