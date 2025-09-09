@@ -1,13 +1,47 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { COLORS } from '../config/constants';
+import { useAuth } from '../context/AuthContext';
 
 
 export const SettingsScreen = ({ navigation }: any) => {
+  const { user, profile: authProfile, signOut } = useAuth();
+  
   const haptic = async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+  };
+
+  // Get user display information
+  const displayName = authProfile?.username || authProfile?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const displayEmail = user?.email || 'user@example.com';
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              haptic();
+              await signOut();
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -24,10 +58,14 @@ export const SettingsScreen = ({ navigation }: any) => {
 
         {/* Profile summary card */}
         <View style={styles.profileCard}>
-          <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          ) : (
+            <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+          )}
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Alex Richards</Text>
-            <Text style={styles.profileEmail}>alex.richards@***ple.com</Text>
+            <Text style={styles.profileName}>{displayName}</Text>
+            <Text style={styles.profileEmail}>{displayEmail}</Text>
           </View>
           <TouchableOpacity onPress={haptic} style={styles.editBtn}>
             <Icon name="pencil-outline" size={18} color={COLORS.text} />
@@ -57,7 +95,7 @@ export const SettingsScreen = ({ navigation }: any) => {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity onPress={haptic} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
           <Icon name="logout" size={20} color="#FF453A" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>

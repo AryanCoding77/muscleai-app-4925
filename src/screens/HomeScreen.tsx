@@ -15,6 +15,7 @@ import { StatBadge } from '../components/dashboard/StatBadge';
 import { RingStat } from '../components/dashboard/RingStat';
 import { Chip } from '../components/ui/Chip';
 import { ResponsiveHeader } from '../components/ui/ResponsiveHeader';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const DAYS = ['S','M','T','W','T','F','S'] as const;
@@ -23,6 +24,11 @@ const DATES = [4,5,6,7,8,9,10] as const;
 export const HomeScreen = ({ navigation }: any) => {
   const isSmall = width < 380;
   const ringSize = isSmall ? 90 : 110;
+  const { user, profile } = useAuth();
+
+  // Get display name from user data - only first word
+  const fullName = profile?.username || profile?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const displayName = fullName.split(' ')[0];
 
   const navigateToAnalyze = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -46,7 +52,8 @@ export const HomeScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <ResponsiveHeader
-          userName="Emma"
+          userName={displayName}
+          userAvatar={profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
           subtitle="Get ready"
           onSettingsPress={onSettingsPress}
           onNotificationPress={onNotificationPress}

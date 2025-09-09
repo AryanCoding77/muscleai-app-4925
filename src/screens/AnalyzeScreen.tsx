@@ -18,13 +18,15 @@ import * as Haptics from 'expo-haptics';
 import { useAPIAnalysis } from '../hooks/useAPIAnalysis';
 import { COLORS } from '../config/constants';
 import { APIErrorCode } from '../types/api.types';
-import { storageService } from '../services/storage';
+import { saveAnalysisToDatabase, supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export const AnalyzeScreen = ({ navigation }: any) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
+  const { user } = useAuth();
 
   const {
     state,
@@ -78,24 +80,32 @@ export const AnalyzeScreen = ({ navigation }: any) => {
       const analysisResult = await analyzeImage(selectedImage);
       
       if (analysisResult) {
-        console.log('✅ Analysis completed successfully, saving to history and navigating to results');
+        console.log('✅ Analysis completed successfully, saving to database and navigating to results');
         try {
-          const overallScore = analysisResult.overall_assessment?.overall_physique_score ?? 0;
-          const muscleGroup =
-            analysisResult.overall_assessment?.strongest_muscles?.[0] ||
-            analysisResult.overall_assessment?.weakest_muscles?.[0] ||
-            undefined;
+          if (!user?.id) {
+            console.error('No authenticated user found');
+            Alert.alert('Authentication Error', 'Please log in to save analysis results');
+            return;
+          }
 
-          await storageService.saveAnalysisResult({
-            id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            timestamp: new Date().toISOString(),
-            imageUri: selectedImage,
-            muscleGroup,
+          const overallScore = analysisResult.overall_assessment?.overall_physique_score ?? 0;
+          
+          const analysisId = await saveAnalysisToDatabase(
+            user.id,
+            analysisResult,
             overallScore,
-            analysis: analysisResult,
-          });
+            selectedImage
+          );
+
+          if (analysisId) {
+            console.log('✅ Analysis saved to database with ID:', analysisId);
+          } else {
+            console.error('Failed to save analysis to database');
+            Alert.alert('Save Error', 'Failed to save analysis results. Please try again.');
+          }
         } catch (e) {
-          console.error('Error saving analysis result:', e);
+          console.error('Error saving analysis result to database:', e);
+          Alert.alert('Save Error', 'Failed to save analysis results. Please try again.');
         }
 
         navigation.navigate('Results', { 

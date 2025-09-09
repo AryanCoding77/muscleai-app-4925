@@ -15,7 +15,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../config/constants';
 import { Card } from '../components/ui/Card';
 import { StatBadge } from '../components/dashboard/StatBadge';
-import { storageService } from '../services/storage';
+import { getAnalysisHistory, deleteAnalysisFromDatabase, AnalysisHistoryRecord } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 import type { AnalysisResult } from '../types';
 
 const { width } = Dimensions.get('window');
@@ -23,6 +24,7 @@ const { width } = Dimensions.get('window');
 export const ProgressScreen = ({ navigation }: any) => {
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadAnalysisHistory();
@@ -38,10 +40,28 @@ export const ProgressScreen = ({ navigation }: any) => {
 
   const loadAnalysisHistory = async () => {
     try {
-      const history = await storageService.getAnalysisHistory();
-      setAnalysisHistory(history);
+      if (!user?.id) {
+        console.log('No authenticated user, skipping history load');
+        setAnalysisHistory([]);
+        return;
+      }
+
+      const dbHistory = await getAnalysisHistory(user.id);
+      
+      // Convert database records to AnalysisResult format
+      const convertedHistory: AnalysisResult[] = dbHistory.map((record: AnalysisHistoryRecord) => ({
+        id: record.id,
+        timestamp: record.created_at,
+        imageUri: record.image_url || '',
+        muscleGroup: record.analysis_data?.overall_assessment?.strongest_muscles?.[0] || 'General Analysis',
+        overallScore: record.overall_score || 0,
+        analysis: record.analysis_data,
+      }));
+
+      setAnalysisHistory(convertedHistory);
     } catch (error) {
       console.error('Error loading analysis history:', error);
+      setAnalysisHistory([]);
     } finally {
       setLoading(false);
     }
@@ -59,10 +79,21 @@ export const ProgressScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await storageService.clearAnalysisHistory();
+              if (!user?.id) {
+                Alert.alert('Error', 'Authentication required');
+                return;
+              }
+
+              // Delete all analyses for this user
+              const deletePromises = analysisHistory.map(analysis => 
+                deleteAnalysisFromDatabase(user.id, analysis.id)
+              );
+              
+              await Promise.all(deletePromises);
               setAnalysisHistory([]);
               Alert.alert('Success', 'Analysis history cleared successfully');
             } catch (error) {
+              console.error('Error clearing history:', error);
               Alert.alert('Error', 'Failed to clear history');
             }
           }
@@ -314,10 +345,16 @@ export const ProgressScreen = ({ navigation }: any) => {
                               style: 'destructive',
                               onPress: async () => {
                                 try {
-                                  await storageService.removeAnalysisById(analysis.id);
+                                  if (!user?.id) {
+                                    Alert.alert('Error', 'Authentication required');
+                                    return;
+                                  }
+                                  
+                                  await deleteAnalysisFromDatabase(user.id, analysis.id);
                                   loadAnalysisHistory();
                                 } catch (error) {
                                   console.error('Error deleting analysis:', error);
+                                  Alert.alert('Error', 'Failed to delete analysis');
                                 }
                               }
                             }

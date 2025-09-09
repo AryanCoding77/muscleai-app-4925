@@ -11,6 +11,7 @@ import {
   Modal,
   ImageBackground,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -21,8 +22,9 @@ import { WaveGraph } from '../components/ui/WaveGraph';
 import { Card } from '../components/ui/Card';
 import { StatBadge } from '../components/dashboard/StatBadge';
 import { MaterialCommunityIcons as Icon, Ionicons } from '@expo/vector-icons';
-import { storageService } from '../services/storage';
 import { AnalysisResult } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { updateUserProfile, getAnalysisHistory, AnalysisHistoryRecord } from '../services/supabase';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -91,8 +93,9 @@ const ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const ProfileScreen = ({ navigation }: any) => {
+  const { user, profile: authProfile, signOut, refreshProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
-    username: 'Devon',
+    username: 'User',
     joinDate: new Date().toISOString(),
     totalAnalyses: 0,
     bestScore: 0,
@@ -103,8 +106,10 @@ export const ProfileScreen = ({ navigation }: any) => {
   const [editUsername, setEditUsername] = useState('');
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (user || authProfile) {
+      loadProfile();
+    }
+  }, [user, authProfile]);
 
   // Reload profile data whenever the Profile tab gains focus
   useFocusEffect(
@@ -116,12 +121,16 @@ export const ProfileScreen = ({ navigation }: any) => {
 
   const loadProfile = async () => {
     try {
-      // Load analysis history to calculate stats
-      const history = await storageService.getAnalysisHistory();
-      const savedProfile = await storageService.getItem('userProfile');
+      if (!user?.id) {
+        console.log('No authenticated user, skipping profile load');
+        return;
+      }
+
+      // Load analysis history from database to calculate stats
+      const dbHistory = await getAnalysisHistory(user.id);
       
-      const totalAnalyses = history.length;
-      const scores = history.map((a: AnalysisResult) => a.overallScore || 0);
+      const totalAnalyses = dbHistory.length;
+      const scores = dbHistory.map((record: AnalysisHistoryRecord) => record.overall_score || 0);
       const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
       
       // Calculate improvement: compare earliest score vs average of most recent up to 3 analyses
@@ -129,7 +138,7 @@ export const ProfileScreen = ({ navigation }: any) => {
       if (totalAnalyses >= 2) {
         const earliestScore = scores[scores.length - 1];
         const recentScores = scores.slice(0, Math.min(3, scores.length));
-        const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+        const recentAvg = recentScores.reduce((sum: number, score: number) => sum + score, 0) / recentScores.length;
         if (earliestScore > 0) {
           improvement = ((recentAvg - earliestScore) / earliestScore) * 100;
         } else {
@@ -175,9 +184,14 @@ export const ProfileScreen = ({ navigation }: any) => {
         };
       });
 
+      // Prioritize authenticated user data
+      const displayName = authProfile?.username || authProfile?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+      const memberSince = authProfile?.created_at || user?.created_at || new Date().toISOString();
+
       const updatedProfile = {
         ...profile,
-        ...(savedProfile || {}),
+        username: displayName,
+        joinDate: memberSince,
         totalAnalyses,
         bestScore,
         improvement: Math.round(improvement),
@@ -185,9 +199,6 @@ export const ProfileScreen = ({ navigation }: any) => {
       };
 
       setProfile(updatedProfile);
-      
-      // Save updated profile
-      await storageService.setItem('userProfile', updatedProfile);
     } catch (error) {
       console.error('Error loading profile:', error);
     }
@@ -201,13 +212,23 @@ export const ProfileScreen = ({ navigation }: any) => {
 
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
+    // Update in Supabase if authenticated
+    if (user && authProfile) {
+      const success = await updateUserProfile(user.id, {
+        username: editUsername.trim(),
+      });
+      
+      if (success) {
+        await refreshProfile();
+      }
+    }
+    
     const updatedProfile = {
       ...profile,
       username: editUsername.trim(),
     };
 
     setProfile(updatedProfile);
-    await storageService.setItem('userProfile', updatedProfile);
     setShowEditModal(false);
     setEditUsername('');
     
@@ -226,11 +247,10 @@ export const ProfileScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await storageService.removeItem('userProfile');
               const resetProfile = {
                 ...profile,
-                username: 'Devon',
-                joinDate: new Date().toISOString(),
+                username: authProfile?.username || authProfile?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+                joinDate: authProfile?.created_at || user?.created_at || new Date().toISOString(),
                 achievements: ACHIEVEMENTS,
               };
               setProfile(resetProfile);
@@ -273,11 +293,18 @@ export const ProfileScreen = ({ navigation }: any) => {
           {/* Profile Avatar */}
           <View style={styles.profileAvatarContainer}>
             <View style={styles.avatarWrapper}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {profile.username.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              {authProfile?.avatar_url ? (
+                <Image 
+                  source={{ uri: authProfile.avatar_url }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {profile.username.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -290,7 +317,11 @@ export const ProfileScreen = ({ navigation }: any) => {
               </View>
             </View>
             <Text style={styles.userHandle}>@{profile.username}</Text>
-            <Text style={styles.userBio}>Fitness Enthusiast | Building Strength Daily</Text>
+            {authProfile?.email && (
+              <Text style={styles.userEmail}>{authProfile.email}</Text>
+            )}
+            <Text style={styles.userBio}>Ready to transform your fitness journey with AI</Text>
+            <Text style={styles.joinDate}>Member since {new Date(profile.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
           </View>
 
           {/* Action Buttons */}
@@ -305,9 +336,33 @@ export const ProfileScreen = ({ navigation }: any) => {
               <Icon name="pencil" size={16} color="#FFFFFF" />
               <Text style={styles.editProfileText}>Edit Profile</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shareQRButton}>
-              <Icon name="qrcode" size={16} color="#FFFFFF" />
-              <Text style={styles.shareQRText}>Share QR</Text>
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Alert.alert(
+                  'Sign Out',
+                  'Are you sure you want to sign out?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Sign Out', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await signOut();
+                        } catch (error) {
+                          console.error('Sign out error:', error);
+                          Alert.alert('Error', 'Failed to sign out. Please try again.');
+                        }
+                      }
+                    },
+                  ]
+                );
+              }}
+            >
+              <Icon name="logout" size={16} color="#FFFFFF" />
+              <Text style={styles.logoutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
 
@@ -585,6 +640,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
+    marginTop: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  joinDate: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginTop: 8,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -619,6 +687,23 @@ const styles = StyleSheet.create({
   },
   shareQRText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  logoutButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  logoutText: {
+    color: '#EF4444',
     fontSize: 14,
     fontWeight: '600',
   },

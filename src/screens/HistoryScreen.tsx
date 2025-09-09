@@ -16,7 +16,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MuscleAnalysisResponse } from '../types/api.types';
 import { DataTransformer } from '../services/data/DataTransformer';
 import { COLORS } from '../config/constants';
-import { storageService } from '../services/storage';
+import { getAnalysisHistory, deleteAnalysisFromDatabase, AnalysisHistoryRecord } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 
 interface HistoryItem {
   id: string;
@@ -31,6 +32,7 @@ export const HistoryScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadHistory();
@@ -46,16 +48,23 @@ export const HistoryScreen = ({ navigation }: any) => {
 
   const loadHistory = async () => {
     try {
-      const list = await storageService.getAnalysisHistory();
-      const mapped: HistoryItem[] = list.map((x) => ({
-        id: x.id,
-        date: new Date(x.timestamp),
-        imageUri: x.imageUri,
-        analysis: x.analysis as MuscleAnalysisResponse,
+      if (!user?.id) {
+        console.log('No authenticated user, skipping history load');
+        setHistory([]);
+        return;
+      }
+
+      const dbHistory = await getAnalysisHistory(user.id);
+      const mapped: HistoryItem[] = dbHistory.map((record: AnalysisHistoryRecord) => ({
+        id: record.id,
+        date: new Date(record.created_at),
+        imageUri: record.image_url || '',
+        analysis: record.analysis_data as MuscleAnalysisResponse,
       }));
       setHistory(mapped.sort((a, b) => b.date.getTime() - a.date.getTime()));
     } catch (error) {
       console.error('Failed to load history:', error);
+      setHistory([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -100,10 +109,24 @@ export const HistoryScreen = ({ navigation }: any) => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const newHistory = history.filter(h => h.id !== id);
-            setHistory(newHistory);
-            await storageService.removeAnalysisById(id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            try {
+              if (!user?.id) {
+                Alert.alert('Error', 'Authentication required');
+                return;
+              }
+
+              const success = await deleteAnalysisFromDatabase(user.id, id);
+              if (success) {
+                const newHistory = history.filter(h => h.id !== id);
+                setHistory(newHistory);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } else {
+                Alert.alert('Error', 'Failed to delete analysis');
+              }
+            } catch (error) {
+              console.error('Error deleting analysis:', error);
+              Alert.alert('Error', 'Failed to delete analysis');
+            }
           },
         },
       ]
@@ -120,9 +143,24 @@ export const HistoryScreen = ({ navigation }: any) => {
           text: 'Clear All',
           style: 'destructive',
           onPress: async () => {
-            setHistory([]);
-            await storageService.clearAnalysisHistory();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            try {
+              if (!user?.id) {
+                Alert.alert('Error', 'Authentication required');
+                return;
+              }
+
+              // Delete all analyses for this user
+              const deletePromises = history.map(item => 
+                deleteAnalysisFromDatabase(user.id, item.id)
+              );
+              
+              await Promise.all(deletePromises);
+              setHistory([]);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+              console.error('Error clearing history:', error);
+              Alert.alert('Error', 'Failed to clear history');
+            }
           },
         },
       ]

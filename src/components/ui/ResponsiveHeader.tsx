@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ const { width } = Dimensions.get('window');
 
 interface ResponsiveHeaderProps {
   userName: string;
+  userAvatar?: string;
   subtitle: string;
   onSettingsPress: () => void;
   onNotificationPress?: () => void;
@@ -22,6 +24,7 @@ interface ResponsiveHeaderProps {
 
 const ResponsiveHeaderBase: React.FC<ResponsiveHeaderProps> = ({
   userName,
+  userAvatar,
   subtitle,
   onSettingsPress,
   onNotificationPress,
@@ -55,13 +58,24 @@ const ResponsiveHeaderBase: React.FC<ResponsiveHeaderProps> = ({
           isSmallScreen && styles.avatarSmall,
           isTablet && styles.avatarTablet
         ]}>
-          <View style={styles.avatarInner}>
-            <Ionicons 
-              name="person" 
-              size={isSmallScreen ? 16 : isTablet ? 24 : 20} 
-              color={COLORS.textSecondary} 
+          {userAvatar ? (
+            <Image 
+              source={{ uri: userAvatar }} 
+              style={[
+                styles.avatarImage,
+                isSmallScreen && styles.avatarImageSmall,
+                isTablet && styles.avatarImageTablet
+              ]}
             />
-          </View>
+          ) : (
+            <View style={styles.avatarInner}>
+              <Ionicons 
+                name="person" 
+                size={isSmallScreen ? 16 : isTablet ? 24 : 20} 
+                color={COLORS.textSecondary} 
+              />
+            </View>
+          )}
         </View>
         <View style={styles.textContainer}>
           <View style={styles.greetingRow}>
@@ -216,6 +230,21 @@ const styles = StyleSheet.create({
   avatarInner: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatarImageTablet: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  avatarImageSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   textContainer: {
     flex: 1,

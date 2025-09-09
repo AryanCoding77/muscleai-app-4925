@@ -1,132 +1,145 @@
-/**
- * LOGIN SCREEN
- * Displays Google Sign-In button and handles authentication
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
   ActivityIndicator,
   Image,
-  Alert,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../config/constants';
 
-const { width, height } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export const LoginScreen: React.FC = () => {
-  const { signInWithGoogle, user, loading: authLoading } = useAuth();
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const navigation = useNavigation<any>();
-
-  // Redirect to main app if user is already authenticated
-  useEffect(() => {
-    if (user) {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
-    }
-  }, [user, navigation]);
+export const LoginScreen = () => {
+  const { signInWithGoogle } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setIsSigningIn(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setIsLoading(true);
       await signInWithGoogle();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Sign in error:', error);
-      Alert.alert(
-        'Sign In Failed',
-        error.message || 'Unable to sign in with Google. Please try again.'
-      );
     } finally {
-      setIsSigningIn(false);
+      setIsLoading(false);
     }
   };
 
-  const isLoading = authLoading || isSigningIn;
-
   return (
     <LinearGradient
-      colors={[COLORS.background, '#1a1a2e', '#0f0f1e']}
+      colors={['#0A0A0A', '#1A1A1A', '#2F1B14', '#8B4513', '#A67C52']}
       style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
-          {/* Logo Section */}
+          {/* Logo and App Name */}
           <View style={styles.logoSection}>
             <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>💪</Text>
+              <LinearGradient
+                colors={['#FF6B35', '#FF8E53']}
+                style={styles.logoGradient}
+              >
+                <Icon name="arm-flex" size={60} color="#FFFFFF" />
+              </LinearGradient>
             </View>
             <Text style={styles.appName}>Muscle AI</Text>
-            <Text style={styles.tagline}>Your Personal Fitness Analyzer</Text>
+            <Text style={styles.tagline}>AI-Powered Fitness Analysis</Text>
+          </View>
+
+          {/* Features Section */}
+          <View style={styles.featuresSection}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Icon name="camera" size={24} color="#FF6B35" />
+              </View>
+              <View style={styles.featureText}>
+                <Text style={styles.featureTitle}>Smart Analysis</Text>
+                <Text style={styles.featureDescription}>
+                  Analyze your muscle development with AI
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Icon name="chart-line" size={24} color="#50C878" />
+              </View>
+              <View style={styles.featureText}>
+                <Text style={styles.featureTitle}>Track Progress</Text>
+                <Text style={styles.featureDescription}>
+                  Monitor your fitness journey over time
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Icon name="trophy" size={24} color="#FFD700" />
+              </View>
+              <View style={styles.featureText}>
+                <Text style={styles.featureTitle}>Achievements</Text>
+                <Text style={styles.featureDescription}>
+                  Unlock rewards and reach your goals
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Sign In Section */}
           <View style={styles.signInSection}>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.instructionText}>
-              Sign in to access your fitness journey
+            <Text style={styles.signInTitle}>Get Started</Text>
+            <Text style={styles.signInSubtitle}>
+              Sign in to begin your fitness transformation
             </Text>
 
-            {/* Google Sign In Button */}
             <TouchableOpacity
-              style={[styles.googleButton, isLoading && styles.disabledButton]}
+              style={styles.googleButton}
               onPress={handleGoogleSignIn}
               disabled={isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#4285F4" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
                   <View style={styles.googleIconContainer}>
-                    <Text style={styles.googleIcon}>G</Text>
+                    <Image
+                      source={{
+                        uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
+                      }}
+                      style={styles.googleIcon}
+                    />
                   </View>
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
 
-            {/* Terms and Privacy */}
-            <Text style={styles.termsText}>
-              By signing in, you agree to our{' '}
-              <Text style={styles.linkText}>Terms of Service</Text> and{' '}
-              <Text style={styles.linkText}>Privacy Policy</Text>
+            <Text style={styles.disclaimer}>
+              By signing in, you agree to our Terms of Service and Privacy Policy
             </Text>
           </View>
+        </View>
 
-          {/* Features Section */}
-          <View style={styles.featuresSection}>
-            <View style={styles.featureRow}>
-              <FeatureItem icon="📸" text="Analyze Photos" />
-              <FeatureItem icon="📊" text="Track Progress" />
-              <FeatureItem icon="🎯" text="Get Insights" />
-            </View>
-          </View>
+        {/* Background Decoration */}
+        <View style={styles.backgroundDecoration}>
+          <View style={styles.circle1} />
+          <View style={styles.circle2} />
         </View>
       </SafeAreaView>
     </LinearGradient>
   );
 };
-
-// Feature Item Component
-const FeatureItem: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
-  <View style={styles.featureItem}>
-    <Text style={styles.featureIcon}>{icon}</Text>
-    <Text style={styles.featureText}>{text}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -139,47 +152,82 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'space-between',
+    paddingVertical: 40,
   },
   logoSection: {
     alignItems: 'center',
-    marginTop: height * 0.08,
+    marginTop: 40,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary + '20',
+    marginBottom: 20,
+  },
+  logoGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoEmoji: {
-    fontSize: 48,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   appName: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    color: COLORS.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '500',
+  },
+  featuresSection: {
+    marginVertical: 40,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  featureIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  featureText: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   signInSection: {
     alignItems: 'center',
-    marginTop: height * 0.05,
   },
-  welcomeText: {
-    fontSize: 28,
+  signInTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
-  instructionText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
+  signInSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 32,
+    textAlign: 'center',
   },
   googleButton: {
     flexDirection: 'row',
@@ -188,64 +236,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 100,
-    width: width - 48,
-    marginBottom: 24,
+    borderRadius: 30,
+    width: '100%',
+    maxWidth: 300,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
   },
-  disabledButton: {
-    opacity: 0.7,
-  },
   googleIconContainer: {
-    width: 24,
-    height: 24,
     marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   googleIcon: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4285F4',
+    width: 20,
+    height: 20,
   },
   googleButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3c4043',
+    color: '#333333',
   },
-  termsText: {
+  disclaimer: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
-    paddingHorizontal: 32,
+    marginTop: 20,
+    paddingHorizontal: 40,
+    lineHeight: 16,
   },
-  linkText: {
-    color: COLORS.primary,
-    textDecorationLine: 'underline',
+  backgroundDecoration: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
   },
-  featuresSection: {
-    marginBottom: height * 0.08,
+  circle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
   },
-  featureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  featureItem: {
-    alignItems: 'center',
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  featureText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  circle2: {
+    position: 'absolute',
+    bottom: -150,
+    left: -150,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: 'rgba(255, 142, 83, 0.05)',
   },
 });

@@ -1,4 +1,4 @@
-// Main App Component with Tab Navigation
+// Main App Component with Authentication and Tab Navigation
 
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
@@ -13,10 +13,13 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ResultsScreen } from './src/screens/ResultsScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { ComparisonScreen } from './src/screens/ComparisonScreen';
+import { LoginScreen } from './src/screens/LoginScreen';
+import { LoadingScreen } from './src/screens/LoadingScreen';
 import { COLORS } from './src/config/constants';
 import { CustomTabBar } from './src/components/navigation/CustomTabBar';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import ExerciseDetailScreen from './src/screens/ExerciseDetailScreen';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -76,13 +79,30 @@ function TabNavigator() {
   );
 }
 
+// Main App Navigator with Authentication Logic
+function AppNavigator() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  return <StackNavigator />;
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="light" />
-        <StackNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </NavigationContainer>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
